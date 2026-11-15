@@ -6,6 +6,7 @@ import { useState } from "react";
 import { MUSCLES } from "@/lib/seed";
 import { MUSCLE_COLORS, Workout, addDays, fmt, logTemplate, summarize, toDate, today, useLoad, weekStart } from "@/lib/client";
 import { WorkoutCard } from "@/components/ui";
+import VolumeChart from "@/components/VolumeChart";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -92,6 +93,8 @@ export default function Dashboard() {
           Green zone marks 10–20 sets a week, the usual range for growth.
         </div>
       </div>
+
+      <VolumeChart />
 
       <div className="section-title">
         <span>Quick log</span>
