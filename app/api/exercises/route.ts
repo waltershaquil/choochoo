@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const { q } = await db();
-    return Response.json(await q(`select id, name, muscle, equipment, is_custom from exercises order by name`));
+    return Response.json(await q(`select id, name, muscle, equipment, is_custom from choochoo.exercises order by name`));
   } catch (e) {
     return fail(e);
   }
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     }
     const { q } = await db();
     const rows = await q(
-      `insert into exercises (name, muscle, equipment, is_custom) values ($1, $2, $3, true)
+      `insert into choochoo.exercises (name, muscle, equipment, is_custom) values ($1, $2, $3, true)
        on conflict (name) do nothing returning id, name, muscle, equipment, is_custom`,
       [name, muscle, equipment]
     );

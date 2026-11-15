@@ -12,8 +12,8 @@ export async function GET(req: Request) {
   try {
     const { q } = await db();
     const [row] = await q(
-      `select (select count(*)::int from exercises) as exercises,
-              (select count(*)::int from workouts where kind = 'workout') as workouts,
+      `select (select count(*)::int from choochoo.exercises) as exercises,
+              (select count(*)::int from choochoo.workouts where kind = 'workout') as workouts,
               now() as checked_at`
     );
     return Response.json({ ok: true, ...row });

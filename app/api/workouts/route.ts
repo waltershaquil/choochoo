@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     const { tx } = await db();
     const id = await tx(async (q) => {
       const [row] = await q(
-        `insert into workouts (kind, name, day, finished) values ($1, $2, $3, $4) returning id`,
+        `insert into choochoo.workouts (kind, name, day, finished) values ($1, $2, $3, $4) returning id`,
         [w.kind, w.name, w.day, w.finished]
       );
       await writeBody(q, Number(row.id), w);

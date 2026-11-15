@@ -83,7 +83,9 @@ async function pgliteDriver(): Promise<Driver> {
 }
 
 const SCHEMA = [
-  `create table if not exists exercises (
+  // Own schema, so the app never collides with tables already in the database.
+  `create schema if not exists choochoo`,
+  `create table if not exists choochoo.exercises (
     id serial primary key,
     name text not null unique,
     muscle text not null,
@@ -91,7 +93,7 @@ const SCHEMA = [
     is_custom boolean not null default false
   )`,
   // kind = 'workout' (a logged session) or 'template' (a favourite)
-  `create table if not exists workouts (
+  `create table if not exists choochoo.workouts (
     id serial primary key,
     kind text not null default 'workout',
     name text not null default '',
@@ -99,23 +101,23 @@ const SCHEMA = [
     finished boolean not null default false,
     created_at timestamptz not null default now()
   )`,
-  `create table if not exists workout_exercises (
+  `create table if not exists choochoo.workout_exercises (
     id serial primary key,
-    workout_id integer not null references workouts(id) on delete cascade,
-    exercise_id integer not null references exercises(id),
+    workout_id integer not null references choochoo.workouts(id) on delete cascade,
+    exercise_id integer not null references choochoo.exercises(id),
     position integer not null
   )`,
-  `create table if not exists workout_sets (
+  `create table if not exists choochoo.workout_sets (
     id serial primary key,
-    workout_exercise_id integer not null references workout_exercises(id) on delete cascade,
+    workout_exercise_id integer not null references choochoo.workout_exercises(id) on delete cascade,
     position integer not null,
     weight double precision,
     reps integer
   )`,
-  `create index if not exists workouts_kind_day on workouts(kind, day)`,
-  `create index if not exists workout_exercises_workout on workout_exercises(workout_id)`,
-  `create index if not exists workout_exercises_exercise on workout_exercises(exercise_id)`,
-  `create index if not exists workout_sets_we on workout_sets(workout_exercise_id)`,
+  `create index if not exists workouts_kind_day on choochoo.workouts(kind, day)`,
+  `create index if not exists workout_exercises_workout on choochoo.workout_exercises(workout_id)`,
+  `create index if not exists workout_exercises_exercise on choochoo.workout_exercises(exercise_id)`,
+  `create index if not exists workout_sets_we on choochoo.workout_sets(workout_exercise_id)`,
 ];
 
 async function init(): Promise<Driver> {
@@ -137,7 +139,7 @@ async function init(): Promise<Driver> {
     }
   }
   await driver.q(
-    `insert into exercises (name, muscle, equipment) values ${values.join(",")} on conflict (name) do nothing`,
+    `insert into choochoo.exercises (name, muscle, equipment) values ${values.join(",")} on conflict (name) do nothing`,
     rows
   );
   return driver;
@@ -173,13 +175,13 @@ export const WORKOUT_SELECT = `
         'exercise_id', we.exercise_id, 'name', e.name, 'muscle', e.muscle,
         'sets', coalesce((
           select json_agg(json_build_object('weight', s.weight, 'reps', s.reps) order by s.position)
-          from workout_sets s where s.workout_exercise_id = we.id
+          from choochoo.workout_sets s where s.workout_exercise_id = we.id
         ), '[]'::json)
       ) order by we.position)
-      from workout_exercises we join exercises e on e.id = we.exercise_id
+      from choochoo.workout_exercises we join choochoo.exercises e on e.id = we.exercise_id
       where we.workout_id = w.id
     ), '[]'::json) as exercises
-  from workouts w`;
+  from choochoo.workouts w`;
 
 const num = (v: unknown) => (v === null || v === undefined || v === "" || !isFinite(Number(v)) ? null : Number(v));
 
@@ -204,7 +206,7 @@ export function cleanWorkout(body: any): WorkoutInput {
 
 /** Replaces the exercises and sets of a workout inside a transaction. */
 export async function writeBody(q: Q, workoutId: number, w: WorkoutInput) {
-  await q(`delete from workout_exercises where workout_id = $1`, [workoutId]);
+  await q(`delete from choochoo.workout_exercises where workout_id = $1`, [workoutId]);
   if (!w.exercises.length) return;
 
   const exParams: unknown[] = [workoutId];
@@ -213,7 +215,7 @@ export async function writeBody(q: Q, workoutId: number, w: WorkoutInput) {
     return `($1, $${exParams.length - 1}, $${exParams.length})`;
   });
   const inserted = await q(
-    `insert into workout_exercises (workout_id, exercise_id, position) values ${exValues.join(",")} returning id, position`,
+    `insert into choochoo.workout_exercises (workout_id, exercise_id, position) values ${exValues.join(",")} returning id, position`,
     exParams
   );
   const idByPos = new Map<number, number>(inserted.map((r) => [Number(r.position), Number(r.id)]));
@@ -229,7 +231,7 @@ export async function writeBody(q: Q, workoutId: number, w: WorkoutInput) {
   );
   if (setValues.length) {
     await q(
-      `insert into workout_sets (workout_exercise_id, position, weight, reps) values ${setValues.join(",")}`,
+      `insert into choochoo.workout_sets (workout_exercise_id, position, weight, reps) values ${setValues.join(",")}`,
       setParams
     );
   }
