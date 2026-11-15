@@ -14,6 +14,7 @@ A hypertrophy-focused workout tracker: Next.js on Vercel, Postgres on Supabase.
    - `DATABASE_URL` – the **Transaction pooler** connection string from Supabase (**Connect** button), with your password filled in.
      Use the pooler string rather than `db.<ref>.supabase.co`: that direct host is IPv6-only and Vercel functions are IPv4-only.
    - or `SUPABASE_DB_PASSWORD` plus `SUPABASE_POOLER_HOST` (for example `aws-0-eu-west-1.pooler.supabase.com`).
+   - `APP_PASSCODE` – locks the app: every page and API call needs this passcode once per device. Without it the app is open to anyone with the URL.
    - optional `CRON_SECRET` – any random string; protects the keep-alive endpoint.
 3. Deploy. Tables and the exercise library are created automatically on the first request.
 

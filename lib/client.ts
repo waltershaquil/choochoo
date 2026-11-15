@@ -36,6 +36,8 @@ export async function api<T = any>(path: string, init?: RequestInit): Promise<T>
     cache: "no-store",
   });
   const data = await res.json().catch(() => ({}));
+  // Passcode cookie missing or expired: back to the unlock screen.
+  if (res.status === 401 && data?.error === "Locked") window.location.href = "/login";
   if (!res.ok) throw new Error(data?.error || `Request failed (${res.status})`);
   return data as T;
 }

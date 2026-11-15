@@ -36,7 +36,7 @@ export default function TabBar() {
   const path = usePathname();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  if (path.startsWith("/workout/")) return null;
+  if (path.startsWith("/workout/") || path === "/login") return null;
 
   const start = async () => {
     if (busy) return;
