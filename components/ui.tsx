@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { MUSCLES } from "@/lib/seed";
-import { Exercise, MUSCLE_COLORS, Workout, fmt, fmtSet, isDone, prettyDay, summarize } from "@/lib/client";
+import { Exercise, MUSCLE_COLORS, WSet, Workout, fmt, fmtSet, isDone, prettyDay, summarize } from "@/lib/client";
 
 export function Sheet({
   title,
@@ -19,6 +19,7 @@ export function Sheet({
   return (
     <div className="sheet-back" onClick={onClose}>
       <div className="sheet glass" onClick={(e) => e.stopPropagation()}>
+        <div className="grabber" />
         <div className="top" style={{ margin: "0 2px 12px" }}>
           <h1 style={{ fontSize: 20 }}>{title}</h1>
           <button className="icon-btn" onClick={onClose} aria-label="Close">
@@ -103,6 +104,18 @@ export function ExerciseList({
   );
 }
 
+/** "3 × 40 kg × 10, 35 kg × 8": runs of identical sets are collapsed. */
+function groupSets(sets: WSet[]) {
+  const runs: { text: string; n: number }[] = [];
+  for (const s of sets) {
+    const text = fmtSet(s);
+    const last = runs[runs.length - 1];
+    if (last?.text === text) last.n++;
+    else runs.push({ text, n: 1 });
+  }
+  return runs.map((r) => (r.n > 1 ? `${r.n} × ${r.text}` : r.text)).join(", ");
+}
+
 export function WorkoutCard({ w, detail, showDay }: { w: Workout; detail?: boolean; showDay?: boolean }) {
   const s = summarize([w]);
   return (
@@ -125,7 +138,7 @@ export function WorkoutCard({ w, detail, showDay }: { w: Workout; detail?: boole
             return (
               <div key={i}>
                 <span>{x.name}</span>
-                <span>{done.length ? done.map(fmtSet).join(", ") : `${x.sets.length} sets`}</span>
+                <span>{done.length ? groupSets(done) : `${x.sets.length} sets`}</span>
               </div>
             );
           })}

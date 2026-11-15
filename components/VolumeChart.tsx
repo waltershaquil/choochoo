@@ -118,7 +118,7 @@ export default function VolumeChart() {
           {!empty && (
             <>
               <line x1={x(shown)} x2={x(shown)} y1={PAD.top} y2={PAD.top + innerH} className="chart-cross" />
-              <path d={path} className="chart-line" />
+              <path key={muscle} d={path} pathLength={1} className="chart-line" />
               {weeks.map((w, i) => (
                 <circle key={w.start} cx={x(i)} cy={y(w.volume)} r={i === shown ? 5 : 3} className="chart-dot" />
               ))}
