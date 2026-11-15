@@ -6,21 +6,48 @@ type Driver = { q: Q; tx: <T>(fn: (q: Q) => Promise<T>) => Promise<T> };
 
 const SUPABASE_REF = "pinryxqaeltjwiipkrdb";
 
-function connectionString(): string | null {
-  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-  const pw = process.env.SUPABASE_DB_PASSWORD;
-  if (!pw) return null;
-  const enc = encodeURIComponent(pw);
-  const pooler = process.env.SUPABASE_POOLER_HOST;
-  return pooler
-    ? `postgresql://postgres.${SUPABASE_REF}:${enc}@${pooler}:6543/postgres`
-    : `postgresql://postgres:${enc}@db.${SUPABASE_REF}.supabase.co:5432/postgres`;
+type Conn = { host: string; port: number; user: string; password: string; database: string };
+
+/**
+ * Lenient connection-string parser: the password may contain unencoded special
+ * characters (@ : / # ...), and stray quotes, a pasted "DATABASE_URL=" prefix or
+ * the [brackets] from Supabase's template are ignored.
+ */
+export function parseConnectionString(raw: string): Conn {
+  const s = raw
+    .trim()
+    .replace(/^DATABASE_URL\s*=\s*/i, "")
+    .replace(/^["']|["']$/g, "")
+    .trim();
+  const m = s.match(/^postgres(?:ql)?:\/\/([^:@/]+)(?::(.*))?@([^@/:?#\s]+)(?::(\d+))?(?:\/([^?#]*))?(?:[?#].*)?$/);
+  if (!m) {
+    throw new Error(
+      "DATABASE_URL is not a valid Postgres connection string. Expected: postgresql://user:password@host:6543/postgres"
+    );
+  }
+  let password = (m[2] ?? "").replace(/^\[(.*)\]$/, "$1");
+  try {
+    password = decodeURIComponent(password);
+  } catch {
+    // not URL-encoded: use it as typed
+  }
+  return { user: decodeURIComponent(m[1]), password, host: m[3], port: Number(m[4] ?? 5432), database: m[5] || "postgres" };
 }
 
-async function pgDriver(url: string): Promise<Driver> {
+function connection(): Conn | null {
+  if (process.env.DATABASE_URL?.trim()) return parseConnectionString(process.env.DATABASE_URL);
+  const password = process.env.SUPABASE_DB_PASSWORD;
+  if (!password) return null;
+  const pooler = process.env.SUPABASE_POOLER_HOST?.trim().replace(/^.*@/, "").replace(/[:/].*$/, "");
+  return pooler
+    ? { host: pooler, port: 6543, user: `postgres.${SUPABASE_REF}`, password, database: "postgres" }
+    : { host: `db.${SUPABASE_REF}.supabase.co`, port: 5432, user: "postgres", password, database: "postgres" };
+}
+
+async function pgDriver(conn: Conn): Promise<Driver> {
   const { Pool } = await import("pg");
   const pool = new Pool({
-    connectionString: url,
+    ...conn,
     ssl: { rejectUnauthorized: false },
     max: 3,
     idleTimeoutMillis: 10_000,
@@ -92,11 +119,11 @@ const SCHEMA = [
 ];
 
 async function init(): Promise<Driver> {
-  const url = connectionString();
-  if (!url && process.env.VERCEL) {
+  const conn = connection();
+  if (!conn && process.env.VERCEL) {
     throw new Error("No database configured: set DATABASE_URL (or SUPABASE_DB_PASSWORD) in the Vercel project settings.");
   }
-  const driver = url ? await pgDriver(url) : await pgliteDriver();
+  const driver = conn ? await pgDriver(conn) : await pgliteDriver();
   for (const stmt of SCHEMA) await driver.q(stmt);
 
   // Seed the exercise library (idempotent, new entries appear on redeploy).
